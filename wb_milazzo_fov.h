@@ -120,13 +120,15 @@ void wbfov_set_visible(int2 pos, int2 origin, int octant, wbfov_state* state)
 	if(npos.x < 0 || npos.x >= size.y || npos.y < 0 || npos.y >= size.y) {
 		return;
 	}
-	state->vis[npos.y * size.x + npos.x] |= state->visibleMask;
+	int index = npos.y * size.x + npos.x;
+	state->vis[index] |= state->visibleMask;
 }
 
 static inline 
-int wbfov_within_distance(int2 pos, int2 origin, int limit)
+int wbfov_within_distance(int2 pos, int2 origin, int octant, int limit)
 {
-	int2 diff = {pos.x - origin.x, pos.y - origin.y};
+	int2 npos = wbfov_calc_real_pos(pos, origin, octant);
+	int2 diff = {npos.x - origin.x, npos.y - origin.y};
 	diff.x *= diff.x;
 	diff.y *= diff.y;
 	return (diff.x + diff.y) <= (limit * limit);
@@ -158,7 +160,7 @@ void wbfov_compute_visibility(int2 origin, int rangeLimit, wbfov_state* state)
 			rangeLimit, 
 			1, 
 			(int2){1, 1}, 
-			(int2){0, 1}, 
+			(int2){1, 0}, 
 			state);
 	}
 }
@@ -180,7 +182,7 @@ void wbfov_compute_octant(
 			topY = ((x*2-1) * hislope.y + hislope.x) / (hislope.x*2);
 			if(wbfov_check_opaque((int2){x, topY}, origin, octant, state)) {
 				if(hislope.y * (topY*2+1) >= hislope.x * (x*2)) {
-					if(wbfov_check_opaque((int2){x, topY+1}, origin, octant, state)) {
+					if(!wbfov_check_opaque((int2){x, topY+1}, origin, octant, state)) {
 						topY++;
 					}
 				}
@@ -212,29 +214,26 @@ void wbfov_compute_octant(
 		for(int y = topY; y >= bottomY; y--) {
 			int2 pos = {x, y};
 			if(rangeLimit >= 0) {
-				if(!wbfov_within_distance(pos, origin, rangeLimit)) {
+				if(!wbfov_within_distance(pos, origin, octant, rangeLimit)) {
 					continue;
 				}
 			}
 
 			bool isOpaque = wbfov_check_opaque(pos, origin, octant, state);
-			if(!isOpaque) {
-				if((y != topY) || (hislope.y * (y*4+1) > hislope.x * (x*4+1))) {
-					if((y != bottomY) || (loslope.y * (y*4+1) < loslope.x * (x*4+1))) {
-						wbfov_set_visible(pos, origin, octant, state);
-					}
-				}
-			}
+			bool isVisible = isOpaque ||
+				((y != topY) || (hislope.y * (y*4-1) > hislope.x * (x*4+1)) && 
+				(y != bottomY) || (loslope.y * (y*4+1) < loslope.x * (x*4-1)));
+			if(isVisible) wbfov_set_visible(pos, origin, octant, state);
 
 			if(x == rangeLimit) continue;
 
 			if(isOpaque) {
 				if(wasOpaque == 0) {
-					int2 nslope = {y*2+1, x*2};
+					int2 nslope = {x*2, y*2+1};
 					if(wbfov_check_opaque((int2){x, y+1}, origin, octant, state)) {
-						nslope.y--;
+						nslope.x--;
 					}
-					if(hislope.y * nslope.x > hislope.x * nslope.y) {
+					if(hislope.y * nslope.y > hislope.x * nslope.x) {
 						if(y == bottomY) {
 							loslope = nslope;
 							break;
@@ -257,11 +256,11 @@ void wbfov_compute_octant(
 				wasOpaque = 1;
 			} else {
 				if(wasOpaque > 0) {
-					int2 nslope = {y*2+1, x*2};
+					int2 nslope = {x*2, y*2+1};
 					if(wbfov_check_opaque((int2){x+1, y+1}, origin, octant, state)) {
-						nslope.y++;
+						nslope.x++;
 					}
-					if(loslope.y * nslope.x >= loslope.x * nslope.y) {
+					if(loslope.y * nslope.y >= loslope.x * nslope.x) {
 						return;
 					}
 					hislope = nslope;

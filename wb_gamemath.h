@@ -60,7 +60,7 @@ Pretty well tested, but I'm always tinkering with it, so there might be issues
 typedef float float2 __attribute__((ext_vector_type((2))));
 typedef float float4 __attribute__((ext_vector_type((4))));
 
-#define _INT2_DEFINED_ 1
+#define _INT2_DECLARED_ 1
 typedef int32_t int2 __attribute__((ext_vector_type((2))));
 typedef int32_t int4 __attribute__((ext_vector_type((4))));
 typedef uint32_t uint2 __attribute__((ext_vector_type((2))));

@@ -37,26 +37,27 @@ Tested and works, though I'm not sure how useful it is on its own.
 
 typedef struct wbMazegenCtx
 {
-	int width, height, nextRow, reserved;
+	int width, height, nextRow, lastSet;
 	int* cells;
 
 	uint32_t rightWallChance;
 	uint32_t bottomWallChance;
 
-	void* scratchRow;
-	void* scratchRwalls;
-	void* scratchBwalls;
+	int* scratchRow;
+	int* scratchRwalls;
+	int* scratchBwalls;
+	int* scratchSets;
 	uint64_t seed;
 } wbMazegenCtx;
 
 static inline
 size_t wb_mazegen_GetCtxSize(int width, int height)
 {
-	return sizeof(wbMazegenCtx) + (3 * sizeof(int) * (width/2) + 1);
+	return sizeof(wbMazegenCtx) + (4 * sizeof(int) * (width/2) + 1) + 256;
 }
 
 wbMazegenCtx* wb_mazegen_InitCtx(int* cells, int width, int height, void* memory, size_t size);
-void wb_mazegen_GenerateRow(wbMazegenCtx* ctx);
+void wb_mazegen_GenerateRow(wbMazegenCtx* ctx, int y);
 void wb_mazegen_Generate(wbMazegenCtx* ctx, uint64_t seed);
 
 #endif
@@ -91,11 +92,14 @@ wbMazegenCtx* wb_mazegen_InitCtx(int* cells, int width, int height, void* memory
 	ctx->scratchRwalls = (void*)(ctx + 1);
 	ctx->scratchBwalls = (ctx->scratchRwalls + width/2 + 1);
 	ctx->scratchRow = (ctx->scratchBwalls + width/2 + 1);
+	ctx->scratchSets = (ctx->scratchRow + width/2 + 1);
 
 	ctx->rightWallChance = UINT32_MAX >> 1;
 	ctx->bottomWallChance = UINT32_MAX >> 1;
 	ctx->width = width;
 	ctx->height = height;
+	ctx->nextRow = 0;
+	ctx->lastSet = 1;
 
 	// give it something if it's otherwise forgotten to be set
 	// zero can give really bad results with rng
@@ -124,7 +128,7 @@ int wb_mazegen_setScan(int rowWidth, int* row, int* sets)
 	return numOut;
 }
 
-void wb_mazegen_GenerateRow(wbMazegenCtx* ctx)
+void wb_mazegen_GenerateRow(wbMazegenCtx* ctx, int y)
 {
 	uint64_t rwallchance = ctx->rightWallChance;
 	uint64_t bwallchance = ctx->bottomWallChance;
@@ -134,9 +138,8 @@ void wb_mazegen_GenerateRow(wbMazegenCtx* ctx)
 	int* row = ctx->scratchRow;
 	int* rwalls = ctx->scratchRwalls;
 	int* bwalls = ctx->scratchBwalls;
-	int set = 1;
+	int set = ctx->lastSet;
 
-	int y = ctx->nextRow;
 	int tmw = ctx->width;
 	int* tilemap = ctx->cells;
 
@@ -176,7 +179,7 @@ void wb_mazegen_GenerateRow(wbMazegenCtx* ctx)
 		}
 	}
 
-	int sets[64];
+	int* sets = ctx->scratchSets;
 	int numSets = wb_mazegen_setScan(w, row, sets);
 
 	for(int i = 0; i < numSets; ++i) {
@@ -228,7 +231,7 @@ void wb_mazegen_GenerateRow(wbMazegenCtx* ctx)
 		if(bwalls[x]) row[x] = 0;
 	}
 	WB_MAZEGEN_memset(bwalls, 0, sizeof(int) * w);
-	ctx->nextRow++;
+	ctx->lastSet = set;
 }
 
 void wb_mazegen_Generate(wbMazegenCtx* ctx, uint64_t seed)
@@ -239,7 +242,7 @@ void wb_mazegen_Generate(wbMazegenCtx* ctx, uint64_t seed)
 	}
 
 	for(int y = 0; y < ctx->height/2; ++y) {
-		wb_mazegen_GenerateRow(ctx);
+		wb_mazegen_GenerateRow(ctx, y);
 	}
 }
 #endif

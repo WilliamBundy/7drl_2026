@@ -109,7 +109,7 @@ int wbpath_pos_to_index(int2 pos, int2 size)
 static inline
 int2 wbpath_index_to_pos(int index, int2 size)
 {
-	return {index % size.x, index / size.x};
+	return (int2){index % size.x, index / size.x};
 }
 
 #define WBPATH_FOUND 0
@@ -178,6 +178,7 @@ int wbpath_search(int2 start, int2 end, wbpath_state* state)
 			if(y + i < 0 || y + i >= size.y) continue;
 			for(int j = -1; j <= 1; ++j) {
 				if(i == 0 && j == 0) continue;
+				if(i != 0 && j != 0) continue; // no diagonals 
 				if(x + j < 0 && x + j >= size.x) continue;
 				int child = (y + i) * size.x + (x + j);
 
@@ -205,11 +206,13 @@ int wbpath_search(int2 start, int2 end, wbpath_state* state)
 				}
 
 				int g = (cells[index].g & ~CELL_CLOSED) + 1;
-				// taxicab heuristic
-				int h = wbpath_abs(x + j - end.x) + wbpath_abs(y + i - end.y);
+				int hx = x + j - end.x;
+				int hy = y + i - end.y;
+				//int h = hx * hx + hy * hy;
+				int h = wbpath_abs(hx) + wbpath_abs(hy);
 
 				if(cells[child].h == 0 || wbpath_f(cell) > (g + h)) {
-					cell->g = g;
+					cell->g = g | CELL_CLOSED;
 					cell->h = h;
 					cell->parent = index;
 					int f = (g + h);
@@ -219,13 +222,15 @@ int wbpath_search(int2 start, int2 end, wbpath_state* state)
 					} else {
 						int lastOpen = -1;
 						int nextOpen = open;
-						while(wbpath_f(&cells[nextOpen]) < f) {
+						while(nextOpen != 0 && wbpath_f(&cells[nextOpen]) < f) {
 							lastOpen = nextOpen;
 							nextOpen = cells[nextOpen].open;
 						}
 
 						if(lastOpen != -1) {
 							cells[lastOpen].open = child;
+						} else {
+							open = child;
 						}
 						cells[child].open = nextOpen;
 						numOpen++;

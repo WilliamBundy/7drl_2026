@@ -10,15 +10,10 @@ ASCII.
 Everything here is licensed under a zero-clause BSD license, and is also
 largely untested. Use at your own risk! 
 
-As for actually planning the game? I really am thinking of a traditional 
-fantasy dungeon crawler type, but with a slightly different focus than others
-in that category; I'd like to have loot progression be driven more by crafting
-and available knowledge than by randomly getting an amazing drop. Rather than
-explicit metaprogression, I might separate dungeon generation and character 
-generation too, so that you can throw multiple characters at the same dungeon
-once the previous one dies, or start fresh every time. 
+### Update, post jam
 
-
+Had a bunch of conflicts this week, so didn't work on anything much beyond the
+weekend, which mostly involved fixing the problems in all of these.
 
 
 

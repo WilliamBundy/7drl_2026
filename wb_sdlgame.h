@@ -25,7 +25,6 @@ Largely untested, probably works... mostly
 */
 
 
-#define WB_SDLGAME_IMPLEMENTATION
 #ifndef _WB_SDLGAME_H_
 #define _WB_SDLGAME_H_
 #include <stdint.h>
@@ -85,6 +84,9 @@ typedef struct GameContext
 
 	SDL_Window* window;
 	SDL_Renderer* renderer;
+	SDL_Surface* surface;
+	SDL_Texture* texture;
+	float2 windowSize;
 
 	bool stopOverlay;
 
@@ -110,6 +112,7 @@ void gamestateSetProcs(GameState* state, GameProc start, GameProc update, GamePr
 
 GameContext* gameCreate(GameSettings settings);
 void gamePreUpdate(GameContext* game);
+void gameUpdate(GameContext* game);
 void gamePostUpdate(GameContext* game);
 SDL_AppResult gameHandleEvent(GameContext* game, SDL_Event* event);
 
@@ -176,7 +179,14 @@ GameContext* gameCreate(GameSettings settings)
 	} else {
 		flags |= SDL_WINDOW_RESIZABLE;
 	}
-	game->window = SDL_CreateWindow(settings.title, settings.windowWidth, settings.windowHeight, flags);
+	game->window = SDL_CreateWindow(
+		settings.title, 
+		settings.windowWidth * game->displayScale, 
+		settings.windowHeight * game->displayScale, 
+		flags);
+	game->stateDict = SDL_CreateProperties();
+
+	game->renderer = SDL_CreateRenderer(game->window, nullptr);
 
 	SDL_ShowWindow(game->window);
 	return game;
@@ -190,8 +200,8 @@ static inline void stateStart(GameState* state, GameContext* game)
 }
 static inline void stateUpdate(GameState* state, GameContext* game) 
 {
-	if(state && state->start) {
-		state->start(state, game);
+	if(state && state->update) {
+		state->update(state, game);
 	}
 }
 static inline void stateRender(GameState* state, GameContext* game) 
@@ -215,13 +225,15 @@ static inline void stateStop(GameState* state, GameContext* game)
 
 void gamePreUpdate(GameContext* game)
 {
+	int ww, wh;
+	SDL_GetWindowSize(game->window, &ww, &wh);
+	game->windowSize = (float2){ww, wh};
 	SDL_SetRenderDrawColor(game->renderer, 0, 0, 0, 0xFF);
 	SDL_RenderClear(game->renderer);
 }	
 
 void gameUpdate(GameContext* game)
 {
-
 	stateUpdate(game->state, game);
 	stateUpdate(game->overlay, game);
 
@@ -251,6 +263,14 @@ void gameUpdate(GameContext* game)
 	}
 }
 
+void gameUpdateInputArray(int8_t* array, int len)
+{
+	int8_t lut[] = {KEY_RELEASED, KEY_RELEASED, KEY_PRESSED, KEY_PRESSED};
+	while(--len > 0) {
+		array[len] = lut[array[len]+1];
+	}
+}
+
 void gamePostUpdate(GameContext* game)
 {
 	SDL_RenderPresent(game->renderer);
@@ -267,6 +287,12 @@ void gamePostUpdate(GameContext* game)
 		game->elapsed = (double)game->frameAvg / (double)SDL_GetPerformanceFrequency();
 		game->elapsed = f32clamp(game->elapsed, game->minFrameTime, game->maxFrameTime);
 		game->totalGameTime += (double)game->frameAvg / (double)SDL_GetPerformanceFrequency();
+	}
+
+	{
+		gameUpdateInputArray(game->input->keys, SDL_arraysize(game->input->keys));
+		gameUpdateInputArray(game->input->mbtn, SDL_arraysize(game->input->mbtn));
+		gameUpdateInputArray(game->input->pad, SDL_arraysize(game->input->pad));
 	}
 }
 

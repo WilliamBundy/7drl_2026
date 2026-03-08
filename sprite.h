@@ -7,7 +7,12 @@ typedef struct Xform
 	float2 pos, origin;
 	float scale, reserved;
 } Xform;
-static const Xform Xzero = (Xform){0, 0, 1}, Xdouble = {0, 0, 2}, Xtriple = {0, 0, 3}; 
+static const Xform 
+	Xzero = (Xform){0, 0, 1}, 
+	Xone = (Xform){0, 0, 1}, 
+	Xdouble = {0, 0, 2}, 
+	Xtriple = {0, 0, 3}, 
+	Xquattro = {0, 0, 4}; 
 
 static inline
 float2 pXform(float2 p, Xform c)
@@ -134,6 +139,12 @@ typedef struct SpriteBatch
 
 	Xform camera;
 	SpriteAtlas* atlas;
+	union {
+		struct {
+			bool intLock;
+		};
+		uint64_t padding;
+	};
 } SpriteBatch;
 
 SpriteBatch* createSpriteBatch(int maxSprites, SpriteAtlas* atlas);

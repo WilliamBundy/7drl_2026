@@ -105,7 +105,7 @@ void addSprite(SpriteBatch* batch, Sprite* sprite)
 void drawSpriteBatch(SpriteBatch* batch, SDL_Renderer* renderer)
 {
 	for(int i = 0; i < batch->numSprites; ++i) {
-		drawSprite(&batch->sprites[i], batch->atlas, batch->camera, renderer);
+		drawSprite(&batch->sprites[i], batch->atlas, batch->camera, batch->intLock, renderer);
 	}
 	batch->numSprites = 0;
 }
